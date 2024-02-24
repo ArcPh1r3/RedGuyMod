@@ -5,6 +5,7 @@ using RoR2;
 using RoR2.Orbs;
 using RoR2.Projectile;
 using RoR2.UI;
+using System.Collections.Specialized;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Networking;
@@ -60,7 +61,7 @@ namespace RedGuyMod.SkillStates.Ravager
             Util.PlaySound("sfx_ravager_charge_beam", this.gameObject);
             this.playId = Util.PlaySound("sfx_ravager_beam_loop", this.gameObject);
         }
-       
+
         public override void OnExit()
         {
             base.OnExit();
@@ -240,8 +241,59 @@ namespace RedGuyMod.SkillStates.Ravager
             else if (charge >= 0.25f) EffectManager.SimpleMuzzleFlash(Modules.Assets.cssEffect, gameObject, "HandL", true);
             else EffectManager.SimpleMuzzleFlash(Addressables.LoadAssetAsync<GameObject>("RoR2/Base/Golem/MuzzleflashGolem.prefab").WaitForCompletion(), gameObject, "HandL", true);
             Util.PlaySound("sfx_ravager_blast", this.gameObject);
+            //tsuyoikenko big blast m1 change. Can't test/build cause csproj is git hidden? or spaghetti
+            if (storedCharge >= 0.5f && this.inputBank.skill1.down)
+            {
+                #region BigBlast
 
-            if (storedCharge >= 0.5f)
+                GameObject tracer = null;
+                GameObject impact = null;
+
+                tracer = Addressables.LoadAssetAsync<GameObject>("RoR2/DLC1/Railgunner/TracerRailgunSuper.prefab").WaitForCompletion();
+                tracer.transform.GetChild(4).GetChild(3).localScale = Vector3.one * 6f;
+                impact = Addressables.LoadAssetAsync<GameObject>("RoR2/Base/Golem/ExplosionGolem.prefab").WaitForCompletion();
+
+                float damage = Util.Remap(storedCharge, 0f, 1f, ChargeBeam.minDamageCoefficient, ChargeBeam.maxDamageCoefficient) * this.damageStat;
+
+                Ray aimRay = GetAimRay();
+
+                BulletAttack bulletAttack = new BulletAttack
+                {
+                    aimVector = aimRay.direction,
+                    origin = aimRay.origin,
+                    damage = damage,
+                    damageColorIndex = DamageColorIndex.Default,
+                    damageType = DamageType.Stun1s,
+                    falloffModel = BulletAttack.FalloffModel.None,
+                    maxDistance = 2000f,
+                    force = Util.Remap(storedCharge, 0f, 1f, 5f, 5000f),
+                    hitMask = LayerIndex.CommonMasks.bullet,
+                    isCrit = this.RollCrit(),
+                    owner = this.gameObject,
+                    muzzleName = "HandL",
+                    smartCollision = true,
+                    procChainMask = default,
+                    procCoefficient = 1f,
+                    radius = Util.Remap(storedCharge, 0f, 1f, 0f, 5f),
+                    sniper = false,
+                    stopperMask = LayerIndex.noCollision.mask,
+                    weapon = null,
+                    tracerEffectPrefab = tracer,
+                    spreadPitchScale = 1f,
+                    spreadYawScale = 1f,
+                    queryTriggerInteraction = QueryTriggerInteraction.UseGlobal,
+                    hitEffectPrefab = impact,
+                    HitEffectNormal = impact,
+                    maxSpread = 0f,
+                    minSpread = 0f,
+                    bulletCount = 1
+                };
+                bulletAttack.Fire();
+
+                this.outer.SetNextStateToMain();
+                #endregion
+            }
+            else if (storedCharge >= 0.5f)
             {
                 this.outer.SetNextState(new FireBeam
                 {
